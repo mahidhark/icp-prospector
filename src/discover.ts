@@ -11,7 +11,9 @@ import { Budget, parseBudgetFlag } from './budget.js';
 import { openDb, recordSpend, upsertMention, type Db } from './store/db.js';
 import { planRedditRuns, normaliseRedditItem, type RedditItem, type RedditRun } from './sources/reddit.js';
 import { runActor } from './apify/client.js';
-import { REDDIT, actualRunCost } from './apify/actors.js';
+import { REDDIT, GOOGLE, actualRunCost } from './apify/actors.js';
+import { planGoogleRuns, normaliseGoogleItem, type GoogleItem, type GoogleRun } from './sources/google.js';
+import { upsertSerpHit } from './store/db.js';
 
 const DEFAULT_BUDGET_USD = 5;
 
@@ -64,6 +66,42 @@ async function redditRun(db: Db, icpName: string, budget: Budget, run: RedditRun
   console.log(`  ${label}: ${outcome.items.length} items, ${fresh} new, ${skipped} not text, $${cost.toFixed(3)} (${outcome.status})`);
 }
 
+async function googleRun(db: Db, icpName: string, budget: Budget, run: GoogleRun): Promise<void> {
+  const label = `google x${run.queries.length} queries${run.queries[0]!.fetchContent ? ' +content' : ''}`;
+  const settle = budget.reserve(run.worstCaseUsd);
+  if (!settle) {
+    console.log(`  SKIPPED ${label}: worst case $${run.worstCaseUsd.toFixed(2)} exceeds remaining $${budget.remainingUsd.toFixed(2)}`);
+    return;
+  }
+  console.log(`  started ${label}`);
+
+  let outcome;
+  try {
+    outcome = await runActor<GoogleItem>(GOOGLE.actor, run.input);
+  } catch (err) {
+    settle(GOOGLE.startUsd);
+    recordSpend(db, icpName, 'discover', GOOGLE.actor, GOOGLE.startUsd, `${label} FAILED`);
+    console.log(`  FAILED ${label}: ${(err as Error).message}`);
+    return;
+  }
+  // No per-item price to fall back on for this actor, so the worst case stands in.
+  const cost = outcome.usageUsd ?? run.worstCaseUsd;
+  settle(cost);
+  recordSpend(db, icpName, 'discover', GOOGLE.actor, cost, `${label} run=${outcome.runId} ${outcome.status}`);
+
+  let hits = 0;
+  let fresh = 0;
+  let withContent = 0;
+  for (const item of outcome.items) {
+    for (const h of normaliseGoogleItem(item, run.queries)) {
+      hits++;
+      if (h.content) withContent++;
+      if (upsertSerpHit(db, icpName, h)) fresh++;
+    }
+  }
+  console.log(`  ${label}: ${outcome.items.length} pages, ${hits} results (${withContent} with page text), ${fresh} stored, $${cost.toFixed(3)} (${outcome.status})`);
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const icpRef = flag(args, '--icp');
@@ -84,6 +122,18 @@ async function main(): Promise<void> {
       for (const r of runs) console.log(`  [dry-run] ${r.community ? `r/${r.community}` : 'site-wide'}: up to $${r.worstCaseUsd.toFixed(2)}`);
     } else {
       await pool(runs, reddit.concurrency, (run) => redditRun(db, icp.name, budget, run));
+    }
+  }
+
+  const google = icp.sources.google;
+  if (google && (!only || only === 'google')) {
+    const runs = planGoogleRuns(google);
+    const worst = runs.reduce((s, r) => s + r.worstCaseUsd, 0);
+    console.log(`google: ${google.queries.length} queries in ${runs.length} runs, worst case $${worst.toFixed(2)}, budget left $${budget.remainingUsd.toFixed(2)}`);
+    if (dryRun) {
+      for (const r of runs) console.log(`  [dry-run] ${r.queries.length} queries${r.queries[0]!.fetchContent ? ' +content' : ''}: up to $${r.worstCaseUsd.toFixed(2)}`);
+    } else {
+      await Promise.all(runs.map((run) => googleRun(db, icp.name, budget, run)));
     }
   }
 

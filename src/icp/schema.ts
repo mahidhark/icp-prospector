@@ -26,16 +26,50 @@ export const RedditSourceSchema = z.strictObject({
   concurrency: z.number().int().min(1).max(8).default(3),
 });
 
+export const GoogleQuerySchema = z.strictObject({
+  query: z.string().min(3).max(250),
+  /**
+   * A signal every company found by this query earns, e.g. `zapier-app` for
+   * `site:zapier.com/apps whatsapp`. Omit for plain market searches.
+   */
+  signal: slug.optional(),
+  /** Result pages to read, ~10 results each. */
+  pages: z.number().int().min(1).max(5).default(1),
+  /**
+   * Also scrape each result page's text. Costs ~$0.008 a page, but a
+   * "top 10 providers" article names ten companies and its snippet names one.
+   */
+  fetchContent: z.boolean().default(false),
+});
+
+export const GoogleSourceSchema = z.strictObject({
+  /** Two-letter Google country, e.g. `in` for google.co.in. */
+  countryCode: z.string().regex(/^[a-z]{2}$/).default('us'),
+  queries: z.array(GoogleQuerySchema).min(1),
+});
+
+export const SegmentSchema = z.strictObject({
+  id: slug,
+  description: z.string().min(5),
+  /** Points added to the prospect score for this segment. */
+  weight: z.number().min(0).max(50).default(0),
+});
+
 export const IcpSchema = z.strictObject({
   name: slug,
   description: z.string().min(10),
   geography: z.array(z.string()).default([]),
   buyerTitles: z.array(z.string()).default([]),
+  /** How qualified companies are grouped. The model picks one per company, or none. */
+  segments: z.array(SegmentSchema).default([]),
   hypotheses: z.array(z.strictObject({ id: slug, statement: z.string().min(10) })).default([]),
   sources: z.strictObject({
     reddit: RedditSourceSchema.optional(),
+    google: GoogleSourceSchema.optional(),
   }),
 });
 
 export type Icp = z.infer<typeof IcpSchema>;
 export type RedditSource = z.infer<typeof RedditSourceSchema>;
+export type GoogleSource = z.infer<typeof GoogleSourceSchema>;
+export type GoogleQuery = z.infer<typeof GoogleQuerySchema>;

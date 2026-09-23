@@ -9,9 +9,8 @@ icps/<name>.yaml  →  discover  →  themes (validate the problem)  →  compan
                      budget-capped
 ```
 
-Status: **validation stage works** (Reddit → themes report). Company sources
-(Zapier / Make / n8n listings, Meta partner directory, Google) and LinkedIn
-contact enrichment are the next two stages.
+Status: **validation and company stages work.** Reddit and Google feed a
+themes report and a ranked prospect list. LinkedIn contact enrichment is next.
 
 ## Why nothing sends
 
@@ -42,6 +41,7 @@ npm run icp -- --check meta-tech-providers-india       # validate the ICP, show 
 npm run discover -- --icp meta-tech-providers-india --dry-run
 npm run discover -- --icp meta-tech-providers-india --budget 3
 npm run themes -- --icp meta-tech-providers-india      # → out/meta-tech-providers-india/themes.md
+npm run companies -- --icp meta-tech-providers-india   # → out/meta-tech-providers-india/prospects.csv
 npm run status                                          # what is stored, what it cost
 ```
 
@@ -59,8 +59,10 @@ Copy `icps/meta-tech-providers-india.yaml` and edit it. The fields:
 | `name` | Slug; also the output folder name |
 | `description` | Who the customer is. The model uses it to judge relevance |
 | `hypotheses` | What you believe. The report counts posts that support or undercut each |
+| `segments` | How prospects are grouped; `weight` adds to the score, so it sets call order |
 | `buyerTitles` | Who to reach at a prospect (used by enrichment, next stage) |
 | `sources.reddit` | Communities, search terms, time window and `maxItemsPerRun` (the cost dial) |
+| `sources.google` | Queries, each with `pages`, an optional `signal` it awards, and `fetchContent` for listicles |
 
 Unknown keys are errors, so a typo cannot silently turn a source off.
 
@@ -71,6 +73,24 @@ Unknown keys are errors, so a typo cannot silently turn a source off.
 - Up to three quotes per theme. **Every quote is verbatim.** The model's
   paraphrases are dropped, and the check runs against the stored post, not
   against the model's own output.
+
+## The prospect list
+
+`companies` reads every stored search result and every relevant Reddit post, then:
+
+1. **Extract.** Claude lists the companies each item names. A name is kept only
+   if it appears in the item. A domain is kept only if it is visible and
+   resembles the name, so a listicle hosted on one vendor's blog doesn't give
+   its domain to the vendors it lists.
+2. **Qualify.** Claude judges fit (icp, adjacent or not), segment and
+   geography, **from the collected evidence only**. When the evidence doesn't
+   say, the answer is `unknown`.
+3. **Rank.** A plain formula adds points for fit, geography, segment weight,
+   signals, Reddit mentions, number of pages and appearing in both sources.
+   `score_breakdown` in the CSV shows every point.
+
+Re-runs are incremental: items already read are skipped, and a company is only
+re-judged when it has gained evidence.
 
 ## Development
 

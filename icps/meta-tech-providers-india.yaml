@@ -20,6 +20,22 @@ buyerTitles:
   - Head of Product
   - Head of Partnerships
 
+# How qualified companies are grouped. `weight` is added to the prospect score,
+# so it encodes which segment to call first.
+segments:
+  - id: smb-crm
+    description: Self-serve WhatsApp CRM / marketing dashboard sold to many small businesses (campaigns, inbox, templates)
+    weight: 15
+  - id: d2c-commerce
+    description: WhatsApp commerce for D2C and e-commerce brands (cart recovery, Shopify flows, order updates)
+    weight: 10
+  - id: conversational-ai
+    description: Chatbot or AI agent platform whose main channel includes WhatsApp
+    weight: 5
+  - id: enterprise-cpaas
+    description: Messaging API / CPaaS provider selling WhatsApp at volume to large enterprises
+    weight: 0
+
 # What we believe, stated so the evidence can contradict it. The themes report
 # says, per hypothesis, whether the collected posts support or undercut it.
 hypotheses:
@@ -61,3 +77,25 @@ sources:
       - WhatsApp tech provider
     time: year
     maxItemsPerRun: 60
+
+  google:
+    countryCode: in
+    queries:
+      # Marketplace listings: finding a company here earns it the signal.
+      - { query: "site:zapier.com/apps whatsapp", signal: zapier-app, pages: 3 }
+      - { query: "site:make.com/en/integrations whatsapp", signal: make-app, pages: 3 }
+      - { query: "site:n8n.io/integrations whatsapp", signal: n8n-node, pages: 2 }
+      # Market searches: snippets only.
+      - { query: "WhatsApp Business API provider India", pages: 3 }
+      - { query: "WhatsApp Business API CRM for small business India", pages: 2 }
+      - { query: "Meta tech provider WhatsApp platform India", pages: 2 }
+      - { query: "WhatsApp marketing platform India SMB", pages: 2 }
+      - { query: "WhatsApp chatbot platform India", pages: 2 }
+      - { query: "WhatsApp commerce platform D2C brands India", pages: 2 }
+      # Listicles and alternatives pages: one page each, with page text,
+      # because the names are in the article, not the snippet.
+      - { query: "best WhatsApp Business API providers India", fetchContent: true }
+      - { query: "Interakt alternatives", fetchContent: true }
+      - { query: "AiSensy alternatives", fetchContent: true }
+      - { query: "Wati alternatives India", fetchContent: true }
+      - { query: "WhatsApp BSP list India", fetchContent: true }

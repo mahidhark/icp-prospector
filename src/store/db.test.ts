@@ -22,3 +22,34 @@ test('observed mentions are not re-read', () => {
   saveObservation(db, 'x', { source: 'reddit', external_id: 't3_a', relevant: 0, speaker: 'other', pain: null, quote: null, hypotheses: null }, 'm');
   assert.equal(unobservedMentions(db, 'x').length, 0);
 });
+
+test('extraction reads search results and only relevant Reddit posts, once', async () => {
+  const { upsertSerpHit, unextractedItems, markExtracted, saveObservation: save } = await import('./db.js');
+  const db = openDb(':memory:');
+  upsertSerpHit(db, 'x', { query: 'q', signal: 'zapier-app', url: 'https://z.com/a', title: 'T', description: 'D', position: 1, content: null });
+  upsertMention(db, 'x', mention);
+  upsertMention(db, 'x', { ...mention, externalId: 't3_b' });
+  save(db, 'x', { source: 'reddit', external_id: 't3_a', relevant: 1, speaker: 'other', pain: 'p', quote: null, hypotheses: null }, 'm');
+  save(db, 'x', { source: 'reddit', external_id: 't3_b', relevant: 0, speaker: 'other', pain: null, quote: null, hypotheses: null }, 'm');
+  const items = unextractedItems(db, 'x');
+  assert.deepEqual(items.map((i) => [i.source, i.signal]), [['google', 'zapier-app'], ['reddit', null]]);
+  for (const i of items) markExtracted(db, 'x', i, 'm');
+  assert.equal(unextractedItems(db, 'x').length, 0);
+});
+
+test('repair clears mismatched domains and merges companies sharing one', async () => {
+  const { upsertCompany, addEvidence, repairCompanies, companiesFor, evidenceFor } = await import('./db.js');
+  const { domainMatchesName } = await import('../resolve/extract.js');
+  const db = openDb(':memory:');
+  const it = (ref: string) => ({ source: 'google' as const, ref, url: `https://e.com/${ref}`, text: 't', signal: null });
+  upsertCompany(db, 'x', 'aisensy', 'AiSensy', 'kraya-ai.com');
+  upsertCompany(db, 'x', 'kraya', 'Kraya', 'kraya-ai.com');
+  upsertCompany(db, 'x', 'krayaai', 'Kraya AI', 'kraya-ai.com');
+  addEvidence(db, 'x', 'kraya', it('1'), 's');
+  addEvidence(db, 'x', 'krayaai', it('2'), 's');
+  addEvidence(db, 'x', 'krayaai', it('3'), 's');
+  assert.deepEqual(repairCompanies(db, 'x', domainMatchesName), { cleared: 1, merged: 1 });
+  assert.deepEqual(companiesFor(db, 'x').map((c) => [c.key, c.domain]), [['aisensy', null], ['krayaai', 'kraya-ai.com']]);
+  assert.equal(evidenceFor(db, 'x').filter((e) => e.key === 'krayaai').length, 3);
+  assert.deepEqual(repairCompanies(db, 'x', domainMatchesName), { cleared: 0, merged: 0 });
+});

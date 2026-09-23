@@ -6,6 +6,7 @@
  */
 import { loadIcp } from './load.js';
 import { planRedditRuns } from '../sources/reddit.js';
+import { planGoogleRuns } from '../sources/google.js';
 
 function main(): void {
   const args = process.argv.slice(2);
@@ -15,13 +16,19 @@ function main(): void {
 
   const icp = loadIcp(ref);
   console.log(`OK  ${icp.name}`);
-  console.log(`    ${icp.hypotheses.length} hypotheses, ${icp.buyerTitles.length} buyer titles`);
+  console.log(`    ${icp.hypotheses.length} hypotheses, ${icp.segments.length} segments, ${icp.buyerTitles.length} buyer titles`);
 
   const reddit = icp.sources.reddit;
   if (reddit) {
     const runs = planRedditRuns(reddit);
     const worst = runs.reduce((s, r) => s + r.worstCaseUsd, 0);
     console.log(`    reddit: ${runs.length} runs x up to ${reddit.maxItemsPerRun} items, worst case $${worst.toFixed(2)}`);
+  }
+  const google = icp.sources.google;
+  if (google) {
+    const runs = planGoogleRuns(google);
+    const worst = runs.reduce((s, r) => s + r.worstCaseUsd, 0);
+    console.log(`    google: ${google.queries.length} queries in ${runs.length} runs, worst case $${worst.toFixed(2)}`);
   }
 }
 
