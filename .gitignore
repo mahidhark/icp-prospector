@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime — the store and every report hold scraped third-party content
+data/
+out/
+*.sqlite
+*.db
+*.db-shm
+*.db-wal
+*.log
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
