@@ -9,6 +9,7 @@ npm run discover -- --icp <name> --dry-run
 npm run discover -- --icp <name> --budget 3   # SPENDS (Apify)
 npm run themes -- --icp <name>                # SPENDS (Anthropic tokens)
 npm run companies -- --icp <name>             # SPENDS (Anthropic tokens)
+npm run signals -- --icp <name> --budget 2    # SPENDS (Apify), then re-run companies
 npm run status
 npm test
 npm run typecheck
@@ -35,6 +36,9 @@ If it is unquoted, the shell expands it one level deep and nested tests stop run
   domains) and qualification (`qualify.ts`, evidence-only). `src/score/score.ts`
   is the pure ranking. `companies-cli.ts` orchestrates them and calls
   `repairCompanies` every run, so a rule change also repairs stored rows.
+- `src/signals/verify.ts`: per-company marketplace checks (pure). Confirmed
+  listings are evidence with `source = 'verify'`. They are excluded from
+  qualification staleness and from the page count.
 
 ## Rules
 

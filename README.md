@@ -42,6 +42,8 @@ npm run discover -- --icp meta-tech-providers-india --dry-run
 npm run discover -- --icp meta-tech-providers-india --budget 3
 npm run themes -- --icp meta-tech-providers-india      # → out/meta-tech-providers-india/themes.md
 npm run companies -- --icp meta-tech-providers-india   # → out/meta-tech-providers-india/prospects.csv
+npm run signals -- --icp meta-tech-providers-india --budget 2   # check each ICP company on Zapier / Make / n8n
+npm run companies -- --icp meta-tech-providers-india   # re-rank with the confirmed signals
 npm run status                                          # what is stored, what it cost
 ```
 
@@ -62,6 +64,7 @@ Copy `icps/meta-tech-providers-india.yaml` and edit it. The fields:
 | `segments` | How prospects are grouped; `weight` adds to the score, so it sets call order |
 | `buyerTitles` | Who to reach at a prospect (used by enrichment, next stage) |
 | `sources.reddit` | Communities, search terms, time window and `maxItemsPerRun` (the cost dial) |
+| `signalChecks` | Marketplaces to check each qualified company against, e.g. `{ signal: zapier-app, site: zapier.com/apps }` |
 | `sources.google` | Queries, each with `pages`, an optional `signal` it awards, and `fetchContent` for listicles |
 
 Unknown keys are errors, so a typo cannot silently turn a source off.
@@ -88,6 +91,12 @@ Unknown keys are errors, so a typo cannot silently turn a source off.
 3. **Rank.** A plain formula adds points for fit, geography, segment weight,
    signals, Reddit mentions, number of pages and appearing in both sources.
    `score_breakdown` in the CSV shows every point.
+
+**Signals** come from `npm run signals`. It searches `site:<marketplace> "<company>"`
+for each qualified company, and counts a listing only if the result is on the
+marketplace's path and its URL or title carries the company's name. Each
+company and signal pair is checked once, ever. A confirmed listing adds to the
+score but never makes a qualification stale.
 
 Re-runs are incremental: items already read are skipped, and a company is only
 re-judged when it has gained evidence.

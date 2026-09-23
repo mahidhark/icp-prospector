@@ -36,6 +36,13 @@ segments:
     description: Messaging API / CPaaS provider selling WhatsApp at volume to large enterprises
     weight: 0
 
+# Checked per qualified company by `npm run signals`: is it listed here?
+# A company with its own Zapier/Make app has already invested in no-code.
+signalChecks:
+  - { signal: zapier-app, site: zapier.com/apps }
+  - { signal: make-app, site: make.com/en/integrations }
+  - { signal: n8n-node, site: n8n.io/integrations }
+
 # What we believe, stated so the evidence can contradict it. The themes report
 # says, per hypothesis, whether the collected posts support or undercut it.
 hypotheses:
@@ -81,7 +88,8 @@ sources:
   google:
     countryCode: in
     queries:
-      # Marketplace listings: finding a company here earns it the signal.
+      # Marketplace listings. These mostly surface global tools, not the ICP's
+      # own apps; `npm run signals` checks each qualified company directly.
       - { query: "site:zapier.com/apps whatsapp", signal: zapier-app, pages: 3 }
       - { query: "site:make.com/en/integrations whatsapp", signal: make-app, pages: 3 }
       - { query: "site:n8n.io/integrations whatsapp", signal: n8n-node, pages: 2 }

@@ -48,6 +48,13 @@ export const GoogleSourceSchema = z.strictObject({
   queries: z.array(GoogleQuerySchema).min(1),
 });
 
+/** A per-company check: is this company listed under `site`? */
+export const SignalCheckSchema = z.strictObject({
+  signal: slug,
+  /** Host and path prefix, e.g. `zapier.com/apps`. */
+  site: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}(\/[a-z0-9._-]+)*$/, 'host and optional path, no scheme'),
+});
+
 export const SegmentSchema = z.strictObject({
   id: slug,
   description: z.string().min(5),
@@ -63,6 +70,8 @@ export const IcpSchema = z.strictObject({
   /** How qualified companies are grouped. The model picks one per company, or none. */
   segments: z.array(SegmentSchema).default([]),
   hypotheses: z.array(z.strictObject({ id: slug, statement: z.string().min(10) })).default([]),
+  /** Checked per qualified company by `npm run signals`. */
+  signalChecks: z.array(SignalCheckSchema).default([]),
   sources: z.strictObject({
     reddit: RedditSourceSchema.optional(),
     google: GoogleSourceSchema.optional(),
@@ -73,3 +82,4 @@ export type Icp = z.infer<typeof IcpSchema>;
 export type RedditSource = z.infer<typeof RedditSourceSchema>;
 export type GoogleSource = z.infer<typeof GoogleSourceSchema>;
 export type GoogleQuery = z.infer<typeof GoogleQuerySchema>;
+export type SignalCheck = z.infer<typeof SignalCheckSchema>;

@@ -74,9 +74,12 @@ async function main(): Promise<void> {
   const companies = companiesFor(db, icp.name);
   const evidence = groupEvidence(evidenceFor(db, icp.name));
   const judged = new Map(qualificationsFor(db, icp.name).map((q) => [q.key, q]));
+  // Signal checks confirm a listing, not what a company does, so they never
+  // make a judgement stale.
+  const judgedEvidence = (key: string) => (evidence.get(key) ?? []).filter((e) => e.source !== 'verify').length;
   const todo = companies.filter((c) => {
     const q = judged.get(c.key);
-    return !q || q.evidence_n < (evidence.get(c.key)?.length ?? 0);
+    return !q || q.evidence_n < judgedEvidence(c.key);
   });
   console.log(`qualify: ${todo.length} of ${companies.length} companies need a (re)judgement`);
   for (let i = 0; i < todo.length; i += QUALIFY_BATCH) {

@@ -91,6 +91,17 @@ export const SCHEMA = `
     at           TEXT NOT NULL,
     PRIMARY KEY (icp, key)
   );
+  -- Per-company marketplace checks, so a company is never searched twice for one signal.
+  CREATE TABLE IF NOT EXISTS signal_checks (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    signal       TEXT NOT NULL,
+    confirmed    INTEGER NOT NULL,
+    url          TEXT,
+    query        TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, signal)
+  );
   CREATE TABLE IF NOT EXISTS spend (
     at      TEXT NOT NULL,
     icp     TEXT NOT NULL,
@@ -205,7 +216,8 @@ export interface SerpRow {
 
 /** A source item that may name companies: a search result or a relevant Reddit post. */
 export interface EvidenceItem {
-  source: 'google' | 'reddit';
+  /** `verify` = a per-company signal check, which confirms a listing but says nothing about fit. */
+  source: 'google' | 'reddit' | 'verify';
   /** Stable id within the source. */
   ref: string;
   url: string;
@@ -337,4 +349,17 @@ export function repairCompanies(
   });
   tx();
   return { cleared, merged };
+}
+
+export function checkedSignals(db: Db, icp: string): Set<string> {
+  const rows = db.prepare('SELECT key, signal FROM signal_checks WHERE icp = ?').all(icp) as Array<{ key: string; signal: string }>;
+  return new Set(rows.map((r) => `${r.key}|${r.signal}`));
+}
+
+export function saveSignalCheck(
+  db: Db, icp: string, key: string, signal: string, confirmed: boolean, url: string | null, query: string,
+): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO signal_checks (icp, key, signal, confirmed, url, query, at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(icp, key, signal, confirmed ? 1 : 0, url, query, new Date().toISOString());
 }

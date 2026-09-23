@@ -13,6 +13,7 @@
     "discover": "tsx --env-file-if-exists=.env src/discover.ts",
     "themes": "tsx --env-file-if-exists=.env src/report/themes-cli.ts",
     "companies": "tsx --env-file-if-exists=.env src/companies-cli.ts",
+    "signals": "tsx --env-file-if-exists=.env src/signals-cli.ts",
     "status": "tsx --env-file-if-exists=.env src/status.ts",
     "test": "node --import tsx --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
