@@ -10,6 +10,8 @@ npm run discover -- --icp <name> --budget 3   # SPENDS (Apify)
 npm run themes -- --icp <name>                # SPENDS (Anthropic tokens)
 npm run companies -- --icp <name>             # SPENDS (Anthropic tokens)
 npm run signals -- --icp <name> --budget 2    # SPENDS (Apify), then re-run companies
+npm run capabilities -- --icp <name> --budget 1   # SPENDS (Apify + tokens), then re-run companies
+npm run contacts -- --icp <name> --top 30 --budget 10   # SPENDS (Apify + tokens); writes personal data to out/
 npm run status
 npm test
 npm run typecheck
@@ -36,6 +38,13 @@ If it is unquoted, the shell expands it one level deep and nested tests stop run
   domains) and qualification (`qualify.ts`, evidence-only). `src/score/score.ts`
   is the pure ranking. `companies-cli.ts` orchestrates them and calls
   `repairCompanies` every run, so a rule change also repairs stored rows.
+- `src/capabilities/check.ts`: capability scales (pure). The judge picks the
+  highest level a snippet shows, with a verbatim quote, or `unknown`. Queries
+  are deduped by their text, so a new scale that reuses a query doesn't pay again.
+- `src/contacts/`: LinkedIn adapters (`linkedin.ts`), the pure picking rules
+  (`pick.ts`) and post signals (`signals.ts`). All people returned are stored
+  and contacts are re-derived from them each run, so picking fixes apply
+  without re-paying.
 - `src/signals/verify.ts`: per-company marketplace checks (pure). Confirmed
   listings are evidence with `source = 'verify'`. They are excluded from
   qualification staleness and from the page count.
@@ -53,4 +62,8 @@ If it is unquoted, the shell expands it one level deep and nested tests stop run
   post. A quote that fails is dropped, never shown.
 - **Secrets are only named, never stored.** `.env` is gitignored.
   `.env.example` lists names only.
-- Scraped data (`out/`, the DB) never gets committed.
+- Scraped data (`out/`, the DB) never gets committed. `contacts.csv` holds
+  names and emails.
+- **Apify spend is the larger of Apify's reported usage and the price-table
+  estimate.** Pay-per-event runs can report about $0 at finish, before their
+  events are billed.

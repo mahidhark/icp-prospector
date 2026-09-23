@@ -172,6 +172,43 @@ export const SCHEMA = `
     at           TEXT NOT NULL,
     PRIMARY KEY (icp, profile_url)
   );
+  -- Google results for capability queries, and which (company, capability) pairs were searched.
+  CREATE TABLE IF NOT EXISTS capability_hits (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    capability   TEXT NOT NULL,
+    url          TEXT NOT NULL,
+    title        TEXT NOT NULL,
+    description  TEXT NOT NULL,
+    PRIMARY KEY (icp, key, capability, url)
+  );
+  CREATE TABLE IF NOT EXISTS capability_searched (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    capability   TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, capability)
+  );
+  -- Which capability queries have run for a company, by query text, so a
+  -- scale that reuses an earlier query does not pay for it again.
+  CREATE TABLE IF NOT EXISTS capability_queries_done (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    query        TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, query)
+  );
+  CREATE TABLE IF NOT EXISTS capabilities (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    capability   TEXT NOT NULL,
+    status       TEXT NOT NULL,
+    quote        TEXT,
+    url          TEXT,
+    model        TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, capability)
+  );
   CREATE TABLE IF NOT EXISTS spend (
     at      TEXT NOT NULL,
     icp     TEXT NOT NULL,
@@ -536,4 +573,46 @@ export function saveContactSignals(db: Db, icp: string, r: ContactSignalRow, mod
     `INSERT OR REPLACE INTO contact_signals (icp, profile_url, signals, opener, quote, post_url, model, at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(icp, r.profile_url, r.signals, r.opener, r.quote, r.post_url, model, new Date().toISOString());
+}
+
+// ---------- capabilities ----------
+
+/** `key|query` for every capability query already run. */
+export function capabilityQueriesDone(db: Db, icp: string): Set<string> {
+  const rows = db.prepare('SELECT key, query FROM capability_queries_done WHERE icp = ?').all(icp) as Array<{ key: string; query: string }>;
+  return new Set(rows.map((r) => `${r.key}|${r.query}`));
+}
+
+export function saveCapabilityHits(
+  db: Db, icp: string, key: string, capability: string, query: string,
+  hits: Array<{ url: string; title: string; description: string }>,
+): void {
+  const tx = db.transaction(() => {
+    for (const h of hits) {
+      db.prepare('INSERT OR IGNORE INTO capability_hits (icp, key, capability, url, title, description) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(icp, key, capability, h.url, h.title, h.description);
+    }
+    db.prepare('INSERT OR REPLACE INTO capability_queries_done (icp, key, query, at) VALUES (?, ?, ?, ?)')
+      .run(icp, key, query, new Date().toISOString());
+  });
+  tx();
+}
+
+/** Every snippet gathered for a company, across its capability searches, deduped by URL. */
+export function capabilitySnippets(db: Db, icp: string, key: string): Array<{ url: string; title: string; description: string }> {
+  return db.prepare(
+    'SELECT url, MIN(title) AS title, MIN(description) AS description FROM capability_hits WHERE icp = ? AND key = ? GROUP BY url ORDER BY url',
+  ).all(icp, key) as Array<{ url: string; title: string; description: string }>;
+}
+
+export interface CapabilityDbRow { key: string; capability: string; status: string; quote: string | null; url: string | null }
+
+export function capabilitiesFor(db: Db, icp: string): CapabilityDbRow[] {
+  return db.prepare('SELECT key, capability, status, quote, url FROM capabilities WHERE icp = ?').all(icp) as CapabilityDbRow[];
+}
+
+export function saveCapability(db: Db, icp: string, r: CapabilityDbRow, model: string): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO capabilities (icp, key, capability, status, quote, url, model, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(icp, r.key, r.capability, r.status, r.quote, r.url, model, new Date().toISOString());
 }

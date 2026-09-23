@@ -65,6 +65,36 @@ export const DEFAULT_PERSON_SIGNALS = [
   { id: 'churn-retention', description: 'customer churn, retention or engagement' },
 ];
 
+/** One rung of a capability scale. */
+export const CapabilityLevelSchema = z.strictObject({
+  id: slug,
+  /** What evidence puts a company on this level, for the judge. */
+  description: z.string().min(5),
+  /** Added to the score at this level. Negative for "already has what we sell". */
+  weight: z.number().min(-100).max(100).default(0),
+});
+
+/**
+ * How far a company already has something that changes whether it will buy,
+ * e.g. how deep its own AI goes. Judged per company from Google snippets, as
+ * the highest level the snippets show, with a verbatim quote for it.
+ *
+ * A scale rather than yes/no: measured 2026-09-23, 71 of 92 Indian providers
+ * answered "yes, AI agents" when a tagline like "AI-first platform" counted.
+ * The claim is nearly universal; the depth behind it is what separates a
+ * buyer from a competitor.
+ */
+export const CapabilitySchema = z.strictObject({
+  id: slug,
+  description: z.string().min(10),
+  /** Google queries, each containing `{name}`; snippets from all of them are judged together. */
+  queries: z.array(z.string().includes('{name}', { message: 'must contain {name}' })).min(1),
+  /** Lowest to highest. The judge picks the highest one the evidence supports. */
+  levels: z.array(CapabilityLevelSchema).min(2),
+  /** Score when the snippets don't say (usually: little is written about the company). */
+  unknownWeight: z.number().min(-100).max(100).default(0),
+});
+
 export const SegmentSchema = z.strictObject({
   id: slug,
   description: z.string().min(5),
@@ -82,6 +112,8 @@ export const IcpSchema = z.strictObject({
   hypotheses: z.array(z.strictObject({ id: slug, statement: z.string().min(10) })).default([]),
   /** Topics tagged in each contact's recent posts by `npm run contacts`. */
   personSignals: z.array(PersonSignalSchema).default(DEFAULT_PERSON_SIGNALS),
+  /** Judged per qualified company by `npm run capabilities`. */
+  capabilities: z.array(CapabilitySchema).default([]),
   /** Checked per qualified company by `npm run signals`. */
   signalChecks: z.array(SignalCheckSchema).default([]),
   sources: z.strictObject({
@@ -95,3 +127,4 @@ export type RedditSource = z.infer<typeof RedditSourceSchema>;
 export type GoogleSource = z.infer<typeof GoogleSourceSchema>;
 export type GoogleQuery = z.infer<typeof GoogleQuerySchema>;
 export type SignalCheck = z.infer<typeof SignalCheckSchema>;
+export type Capability = z.infer<typeof CapabilitySchema>;

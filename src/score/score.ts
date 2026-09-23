@@ -4,7 +4,7 @@
  * ranking itself is arithmetic.
  */
 import type { Icp } from '../icp/schema.js';
-import type { CompanyRow, EvidenceRow, QualificationRow } from '../store/db.js';
+import type { CompanyRow, EvidenceRow, QualificationRow, CapabilityDbRow } from '../store/db.js';
 
 export const WEIGHTS = {
   fit: { icp: 50, adjacent: 15, not: 0 } as Record<string, number>,
@@ -33,6 +33,8 @@ export interface Prospect {
   signals: string[];
   redditMentions: number;
   evidenceCount: number;
+  /** Judged capability levels, e.g. ["ai-depth:chatbot"]. */
+  capabilities: string[];
   reason: string;
   evidenceUrls: string[];
   /** e.g. "fit icp 50 + geo yes 20 + zapier_app 5". */
@@ -40,7 +42,7 @@ export interface Prospect {
 }
 
 export function scoreCompany(
-  icp: Icp, c: CompanyRow, q: QualificationRow | undefined, ev: EvidenceRow[],
+  icp: Icp, c: CompanyRow, q: QualificationRow | undefined, ev: EvidenceRow[], caps: CapabilityDbRow[] = [],
 ): Omit<Prospect, 'rank'> {
   const parts: Array<[string, number]> = [];
   const fit = q?.fit ?? 'not';
@@ -64,7 +66,18 @@ export function scoreCompany(
   const sources = new Set(ev.map((e) => e.source));
   if (sources.has('google') && sources.has('reddit')) parts.push(['both sources', WEIGHTS.bothSources]);
 
-  const nonZero = parts.filter(([, n]) => n > 0);
+  // Capabilities can subtract: a prospect that already ships what we sell.
+  // Unjudged scores nothing; judged-but-unknown scores the ICP's unknownWeight.
+  const levels: string[] = [];
+  for (const cap of icp.capabilities) {
+    const row = caps.find((x) => x.capability === cap.id);
+    if (!row) continue;
+    levels.push(`${cap.id}:${row.status}`);
+    const w = row.status === 'unknown' ? cap.unknownWeight : cap.levels.find((l) => l.id === row.status)?.weight ?? 0;
+    parts.push([`${cap.id} ${row.status}`, w]);
+  }
+
+  const nonZero = parts.filter(([, n]) => n !== 0);
   return {
     key: c.key,
     name: c.name,
@@ -76,6 +89,7 @@ export function scoreCompany(
     signals,
     redditMentions,
     evidenceCount: ev.length,
+    capabilities: levels,
     reason: q?.reason ?? '(not qualified yet)',
     evidenceUrls: [...new Set(ev.map((e) => e.url))].slice(0, 3),
     breakdown: nonZero.map(([l, n]) => `${l} ${n}`).join(' + '),
@@ -85,10 +99,13 @@ export function scoreCompany(
 /** Scores every company and ranks them, best first; ties break on evidence, then name. */
 export function rankProspects(
   icp: Icp, companies: CompanyRow[], quals: QualificationRow[], evidence: Map<string, EvidenceRow[]>,
+  caps: CapabilityDbRow[] = [],
 ): Prospect[] {
   const qByKey = new Map(quals.map((q) => [q.key, q]));
+  const capsByKey = new Map<string, CapabilityDbRow[]>();
+  for (const x of caps) capsByKey.set(x.key, [...(capsByKey.get(x.key) ?? []), x]);
   return companies
-    .map((c) => scoreCompany(icp, c, qByKey.get(c.key), evidence.get(c.key) ?? []))
+    .map((c) => scoreCompany(icp, c, qByKey.get(c.key), evidence.get(c.key) ?? [], capsByKey.get(c.key) ?? []))
     .sort((a, b) => b.score - a.score || b.evidenceCount - a.evidenceCount || a.name.localeCompare(b.name))
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
@@ -99,13 +116,13 @@ const csvCell = (v: unknown): string => {
 };
 
 export const CSV_COLUMNS = [
-  'rank', 'company', 'domain', 'fit', 'segment', 'in_geography', 'score', 'signals',
+  'rank', 'company', 'domain', 'fit', 'segment', 'in_geography', 'score', 'signals', 'capability_levels',
   'reddit_mentions', 'evidence_count', 'reason', 'evidence_urls', 'score_breakdown',
 ] as const;
 
 export function toCsv(prospects: Prospect[]): string {
   const rows = prospects.map((p) => [
-    p.rank, p.name, p.domain, p.fit, p.segment, p.inGeography, p.score, p.signals.join(' '),
+    p.rank, p.name, p.domain, p.fit, p.segment, p.inGeography, p.score, p.signals.join(' '), p.capabilities.join(' '),
     p.redditMentions, p.evidenceCount, p.reason, p.evidenceUrls.join(' '), p.breakdown,
   ].map(csvCell).join(','));
   return [CSV_COLUMNS.join(','), ...rows].join('\n') + '\n';

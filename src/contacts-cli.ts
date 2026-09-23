@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { loadIcp } from './icp/load.js';
 import { Budget, parseBudgetFlag } from './budget.js';
 import {
-  openDb, companiesFor, qualificationsFor, evidenceFor, recordSpend, recordModelCall,
+  openDb, capabilitiesFor, companiesFor, qualificationsFor, evidenceFor, recordSpend, recordModelCall,
   linkedinCompaniesFor, saveLinkedinCompany, contactsFor, peopleSearched, markPeopleSearched,
   postsFetched, savePosts, postsFor, contactSignalsFor, saveContactSignals, savePeople, peopleFor, replaceContacts, type Db,
 } from './store/db.js';
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
 
   const db = openDb();
   const evidence = groupEvidence(evidenceFor(db, icp.name));
-  const targets = rankProspects(icp, companiesFor(db, icp.name), qualificationsFor(db, icp.name), evidence)
+  const targets = rankProspects(icp, companiesFor(db, icp.name), qualificationsFor(db, icp.name), evidence, capabilitiesFor(db, icp.name))
     .filter((p) => p.fit === 'icp').slice(0, top);
   console.log(`contacts: top ${targets.length} ICP companies, up to ${perCompany} people each, emails ${people.emails ? 'on' : 'off'}, budget $${budget.limitUsd.toFixed(2)}`);
 
