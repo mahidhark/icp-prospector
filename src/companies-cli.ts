@@ -13,7 +13,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadIcp } from './icp/load.js';
 import {
-  openDb, unextractedItems, markExtracted, upsertCompany, addEvidence, companiesFor,
+  openDb, capabilitiesFor, unextractedItems, markExtracted, upsertCompany, addEvidence, companiesFor,
   evidenceFor, qualificationsFor, saveQualification, recordModelCall, repairCompanies,
 } from './store/db.js';
 import { anthropicModel } from './ai/anthropic.js';
@@ -94,7 +94,7 @@ async function main(): Promise<void> {
   }
 
   // ---- rank
-  const ranked = rankProspects(icp, companies, qualificationsFor(db, icp.name), evidence);
+  const ranked = rankProspects(icp, companies, qualificationsFor(db, icp.name), evidence, capabilitiesFor(db, icp.name));
   const kept = ranked.filter((p) => p.fit !== 'not').map((p, i) => ({ ...p, rank: i + 1 }));
   const dir = join(OUT_DIR, icp.name);
   mkdirSync(dir, { recursive: true });

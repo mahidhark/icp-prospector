@@ -14,6 +14,8 @@
     "themes": "tsx --env-file-if-exists=.env src/report/themes-cli.ts",
     "companies": "tsx --env-file-if-exists=.env src/companies-cli.ts",
     "signals": "tsx --env-file-if-exists=.env src/signals-cli.ts",
+    "contacts": "tsx --env-file-if-exists=.env src/contacts-cli.ts",
+    "capabilities": "tsx --env-file-if-exists=.env src/capabilities-cli.ts",
     "status": "tsx --env-file-if-exists=.env src/status.ts",
     "test": "node --import tsx --test 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
