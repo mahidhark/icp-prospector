@@ -616,3 +616,8 @@ export function saveCapability(db: Db, icp: string, r: CapabilityDbRow, model: s
     `INSERT OR REPLACE INTO capabilities (icp, key, capability, status, quote, url, model, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(icp, r.key, r.capability, r.status, r.quote, r.url, model, new Date().toISOString());
 }
+
+/** Drops a judgement so the next judge pass re-reads the company with its new snippets. */
+export function clearCapability(db: Db, icp: string, key: string, capability: string): void {
+  db.prepare('DELETE FROM capabilities WHERE icp = ? AND key = ? AND capability = ?').run(icp, key, capability);
+}

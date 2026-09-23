@@ -10,7 +10,7 @@ import { loadIcp } from './icp/load.js';
 import { Budget, parseBudgetFlag } from './budget.js';
 import {
   openDb, companiesFor, qualificationsFor, capabilityQueriesDone, saveCapabilityHits, capabilitySnippets,
-  capabilitiesFor, saveCapability, recordSpend, recordModelCall,
+  capabilitiesFor, saveCapability, recordSpend, recordModelCall, clearCapability,
 } from './store/db.js';
 import {
   planCapabilityQueries, hitsAbout, judgeSystem, judgeUser, judgeSchema, groundJudgement,
@@ -74,6 +74,8 @@ async function main(): Promise<void> {
     for (const p of batch) {
       if (!answered.has(p.query)) { unanswered++; continue; }
       saveCapabilityHits(db, icp.name, p.key, p.capability, p.query, hitsAbout(p.name, hits.filter((h) => h.query === p.query)));
+      // New snippets for a judged scale: judge it again with everything.
+      clearCapability(db, icp.name, p.key, p.capability);
     }
     console.log(`  ${out.items.length} result pages, ${unanswered} unanswered (retried next run), $${cost.toFixed(3)}`);
   }

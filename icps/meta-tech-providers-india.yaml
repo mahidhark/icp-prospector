@@ -54,6 +54,8 @@ capabilities:
     queries:
       - '"{name}" AI agent WhatsApp'
       - '"{name}" workflow builder OR flow builder OR automation builder'
+      # Homepage taglines say little about depth; feature and pricing pages do.
+      - '"{name}" features pricing AI agent integrations'
     levels:
       - { id: none, description: "snippets describe what it sells (messaging, API, CRM, campaigns) with no AI or automation features", weight: 5 }
       - { id: ai-claim, description: "AI only in marketing language: taglines like AI-first, AI-powered, smart, with no named AI product or feature", weight: 5 }
