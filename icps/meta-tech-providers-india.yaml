@@ -1,0 +1,63 @@
+# The first ICP this tool was built for. Copy this file to define another.
+#
+# `npm run icp -- --check icps/<file>.yaml` validates it without spending anything.
+
+name: meta-tech-providers-india
+
+description: >
+  Meta Tech Providers and WhatsApp Business Solution Providers (BSPs) in India
+  that give SMBs access to the WhatsApp Cloud API through their own CRM:
+  contacts, template management, campaigns, shared inbox and chatbots.
+
+geography: [India]
+
+# Who we want to talk to at a prospect company. Used by contact enrichment (later sessions).
+buyerTitles:
+  - Founder
+  - CEO
+  - CTO
+  - Chief Product Officer
+  - Head of Product
+  - Head of Partnerships
+
+# What we believe, stated so the evidence can contradict it. The themes report
+# says, per hypothesis, whether the collected posts support or undercut it.
+hypotheses:
+  - id: nocode-bypass
+    statement: >
+      SMBs and freelance builders connect n8n, Make or Zapier directly to the
+      WhatsApp Cloud API, bypassing Tech Provider CRMs.
+  - id: agentic-bypass
+    statement: >
+      AI agents and MCP servers (including Meta's own agentic tooling) let
+      businesses reach WhatsApp Business without a Tech Provider's product.
+  - id: bsp-cost-pain
+    statement: >
+      SMBs see Tech Provider / BSP markups and per-message fees as poor value
+      and look for cheaper or direct routes.
+  - id: automation-gap
+    statement: >
+      SMBs on Tech Provider CRMs want automations and integrations with their
+      other tools that the CRM does not offer.
+
+sources:
+  reddit:
+    # One actor run per community, plus one site-wide run. Each run costs a
+    # $0.02 start fee plus $0.004 per stored item, so maxItemsPerRun is the
+    # cost dial: 8 runs x 60 items is about $2.08.
+    communities:
+      - WhatsappBusinessAPI
+      - whatsapp
+      - n8n
+      - automation
+      - SaaS
+      - IndianStartups
+      - smallbusinessindia
+    siteWide: true
+    searches:
+      - WhatsApp Cloud API
+      - WhatsApp Business API
+      - WhatsApp BSP
+      - WhatsApp tech provider
+    time: year
+    maxItemsPerRun: 60

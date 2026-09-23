@@ -1,0 +1,31 @@
+{
+  "name": "icp-prospector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Give it an ICP; it finds prospect companies across sources and enriches them with contacts and signals. Sending stays human.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "icp": "tsx --env-file-if-exists=.env src/icp/cli.ts",
+    "discover": "tsx --env-file-if-exists=.env src/discover.ts",
+    "themes": "tsx --env-file-if-exists=.env src/report/themes-cli.ts",
+    "status": "tsx --env-file-if-exists=.env src/status.ts",
+    "test": "node --import tsx --test 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
+    "better-sqlite3": "^13.0.3",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
