@@ -8,6 +8,7 @@ npm run icp -- --check <name>        # validate an ICP, no spend
 npm run discover -- --icp <name> --dry-run
 npm run discover -- --icp <name> --budget 3   # SPENDS (Apify)
 npm run themes -- --icp <name>                # SPENDS (Anthropic tokens)
+npm run companies -- --icp <name>             # SPENDS (Anthropic tokens)
 npm run status
 npm test
 npm run typecheck
@@ -30,11 +31,20 @@ If it is unquoted, the shell expands it one level deep and nested tests stop run
   records every Apify dollar and model token.
 - `src/report/themes.ts`: pure prompt, schema, cleaning and rendering logic.
   `themes-cli.ts` is the only part that calls the model.
+- `src/resolve/`: company extraction (`extract.ts`, which grounds names and
+  domains) and qualification (`qualify.ts`, evidence-only). `src/score/score.ts`
+  is the pure ranking. `companies-cli.ts` orchestrates them and calls
+  `repairCompanies` every run, so a rule change also repairs stored rows.
 
 ## Rules
 
 - **Nothing here contacts a person.** There is no send path, no DM and no
   connection request. The output is a list.
+- **Company names must appear in their source, and domains must resemble the
+  name.** `groundExtraction` enforces both. A company the model knows but the
+  source never names must not reach the list.
+- **Structured-output schemas must not put `null` inside an `enum`.** The API
+  rejects it; use `anyOf: [{enum}, {type: 'null'}]`.
 - **Quotes must be verbatim.** `groundQuote` checks them against the stored
   post. A quote that fails is dropped, never shown.
 - **Secrets are only named, never stored.** `.env` is gitignored.

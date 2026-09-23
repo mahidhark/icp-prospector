@@ -20,6 +20,18 @@ export const REDDIT: ActorPrice = {
   perItemUsd: 0.004,
 };
 
+/**
+ * Google search. Charged per results PAGE, not per result, plus an optional
+ * per-page charge for scraping each result's own page.
+ */
+export const GOOGLE = {
+  actor: 'apify/google-search-scraper',
+  startUsd: 0.001,
+  perSerpPageUsd: 0.0045,
+  perContentPageUsd: 0.008,
+  resultsPerSerpPage: 10,
+} as const;
+
 /** Worst case for one run: every item slot filled. */
 export const maxRunCost = (p: ActorPrice, maxItems: number): number =>
   p.startUsd + p.perItemUsd * maxItems;

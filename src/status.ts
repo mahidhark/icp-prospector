@@ -13,6 +13,20 @@ const observed = db.prepare(
   `SELECT icp, COUNT(*) AS n, SUM(relevant) AS relevant FROM observations GROUP BY icp`,
 ).all() as Array<{ icp: string; n: number; relevant: number }>;
 
+const serp = db.prepare(
+  `SELECT icp, COUNT(*) AS n, SUM(CASE WHEN content IS NOT NULL THEN 1 ELSE 0 END) AS withText
+     FROM serp_results GROUP BY icp`,
+).all() as Array<{ icp: string; n: number; withText: number }>;
+
+const companies = db.prepare(
+  `SELECT c.icp, COUNT(*) AS n,
+          SUM(CASE WHEN q.fit = 'icp' THEN 1 ELSE 0 END) AS icp_fit,
+          SUM(CASE WHEN q.fit = 'adjacent' THEN 1 ELSE 0 END) AS adjacent,
+          SUM(CASE WHEN q.key IS NULL THEN 1 ELSE 0 END) AS unjudged
+     FROM companies c LEFT JOIN qualifications q ON q.icp = c.icp AND q.key = c.key
+    GROUP BY c.icp`,
+).all() as Array<{ icp: string; n: number; icp_fit: number; adjacent: number; unjudged: number }>;
+
 const spend = db.prepare(
   `SELECT icp, kind, COUNT(*) AS calls, ROUND(SUM(usd), 3) AS usd FROM spend GROUP BY icp, kind`,
 ).all() as Array<{ icp: string; kind: string; calls: number; usd: number }>;
@@ -26,6 +40,10 @@ console.log('mentions');
 for (const r of mentions) console.log(`  ${r.icp}  ${r.source}: ${r.n} (${r.posts} posts, ${r.n - r.posts} comments)`);
 console.log('observations');
 for (const r of observed) console.log(`  ${r.icp}: ${r.n} read, ${r.relevant} relevant`);
+console.log('search results');
+for (const r of serp) console.log(`  ${r.icp}: ${r.n} (${r.withText} with page text)`);
+console.log('companies');
+for (const r of companies) console.log(`  ${r.icp}: ${r.n} found, ${r.icp_fit} icp, ${r.adjacent} adjacent, ${r.unjudged} not yet judged`);
 console.log('apify spend');
 for (const r of spend) console.log(`  ${r.icp}  ${r.kind}: $${r.usd} over ${r.calls} runs`);
 console.log('model usage');
