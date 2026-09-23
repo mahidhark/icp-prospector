@@ -53,3 +53,13 @@ test('repair clears mismatched domains and merges companies sharing one', async 
   assert.equal(evidenceFor(db, 'x').filter((e) => e.key === 'krayaai').length, 3);
   assert.deepEqual(repairCompanies(db, 'x', domainMatchesName), { cleared: 0, merged: 0 });
 });
+
+test('a new capability query clears the judgement so it is re-judged', async () => {
+  const { saveCapability, capabilitiesFor, saveCapabilityHits, clearCapability, capabilityQueriesDone } = await import('./db.js');
+  const db = openDb(':memory:');
+  saveCapability(db, 'x', { key: 'a', capability: 'ai-depth', status: 'chatbot', quote: 'q', url: 'u' }, 'm');
+  saveCapabilityHits(db, 'x', 'a', 'ai-depth', '"A" features', [{ url: 'https://a.com/f', title: 'A features', description: 'd' }]);
+  clearCapability(db, 'x', 'a', 'ai-depth');
+  assert.equal(capabilitiesFor(db, 'x').length, 0);
+  assert.ok(capabilityQueriesDone(db, 'x').has('a|"A" features'));
+});
