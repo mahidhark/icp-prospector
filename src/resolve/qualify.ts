@@ -94,7 +94,7 @@ export function toQualifications(
       segment: r.fit === 'icp' && r.segment && segIds.has(r.segment) ? r.segment : null,
       in_geography: r.in_geography,
       reason: r.reason.trim(),
-      evidence_n: evidence.get(r.key)?.length ?? 0,
+      evidence_n: (evidence.get(r.key) ?? []).filter((e) => e.source !== 'verify').length,
     });
   }
   return out;

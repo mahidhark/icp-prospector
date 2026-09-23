@@ -58,7 +58,7 @@ export function scoreCompany(
   const redditMentions = new Set(ev.filter((e) => e.source === 'reddit').map((e) => e.ref)).size;
   if (redditMentions) parts.push([`reddit x${redditMentions}`, Math.min(WEIGHTS.redditCap, redditMentions * WEIGHTS.perRedditMention)]);
 
-  const pages = new Set(ev.map((e) => e.url)).size;
+  const pages = new Set(ev.filter((e) => e.source !== 'verify').map((e) => e.url)).size;
   if (pages > 1) parts.push([`pages x${pages}`, Math.min(WEIGHTS.pagesCap, (pages - 1) * WEIGHTS.perExtraPage)]);
 
   const sources = new Set(ev.map((e) => e.source));
