@@ -55,6 +55,16 @@ export const SignalCheckSchema = z.strictObject({
   site: z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}(\/[a-z0-9._-]+)*$/, 'host and optional path, no scheme'),
 });
 
+/** A topic to tag in a contact's posts. */
+export const PersonSignalSchema = z.strictObject({ id: slug, description: z.string().min(5) });
+
+export const DEFAULT_PERSON_SIGNALS = [
+  { id: 'ai-agents', description: 'talks about AI agents, LLMs or agentic tools' },
+  { id: 'automation', description: 'workflows, no-code tools (n8n, Make, Zapier) or integrations' },
+  { id: 'growth-hiring', description: 'fundraising, growth, hiring or launches' },
+  { id: 'churn-retention', description: 'customer churn, retention or engagement' },
+];
+
 export const SegmentSchema = z.strictObject({
   id: slug,
   description: z.string().min(5),
@@ -70,6 +80,8 @@ export const IcpSchema = z.strictObject({
   /** How qualified companies are grouped. The model picks one per company, or none. */
   segments: z.array(SegmentSchema).default([]),
   hypotheses: z.array(z.strictObject({ id: slug, statement: z.string().min(10) })).default([]),
+  /** Topics tagged in each contact's recent posts by `npm run contacts`. */
+  personSignals: z.array(PersonSignalSchema).default(DEFAULT_PERSON_SIGNALS),
   /** Checked per qualified company by `npm run signals`. */
   signalChecks: z.array(SignalCheckSchema).default([]),
   sources: z.strictObject({

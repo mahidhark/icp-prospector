@@ -102,6 +102,76 @@ export const SCHEMA = `
     at           TEXT NOT NULL,
     PRIMARY KEY (icp, key, signal)
   );
+  -- The LinkedIn company page matched to a prospect, or a recorded miss (linkedin_url NULL).
+  CREATE TABLE IF NOT EXISTS linkedin_companies (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    linkedin_url TEXT,
+    name         TEXT,
+    website      TEXT,
+    employees    INTEGER,
+    hq           TEXT,
+    matched_by   TEXT,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key)
+  );
+  -- Chosen contacts. Personal data: stays in the local DB and gitignored out/.
+  CREATE TABLE IF NOT EXISTS contacts (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    profile_url  TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    position     TEXT NOT NULL,
+    headline     TEXT,
+    location     TEXT,
+    emails       TEXT,
+    why          TEXT NOT NULL,
+    source       TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, profile_url)
+  );
+  -- Everyone a people search returned, normalised, so picking rules can be
+  -- re-applied without paying to search again.
+  CREATE TABLE IF NOT EXISTS people (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    profile_url  TEXT NOT NULL,
+    person       TEXT NOT NULL,
+    source       TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key, profile_url)
+  );
+  -- Which companies' people search has run, including the ones that found nobody.
+  CREATE TABLE IF NOT EXISTS people_searched (
+    icp          TEXT NOT NULL,
+    key          TEXT NOT NULL,
+    found        INTEGER NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, key)
+  );
+  CREATE TABLE IF NOT EXISTS person_posts (
+    profile_url  TEXT NOT NULL,
+    post_url     TEXT NOT NULL,
+    posted_at    TEXT,
+    text         TEXT NOT NULL,
+    PRIMARY KEY (profile_url, post_url)
+  );
+  CREATE TABLE IF NOT EXISTS posts_fetched (
+    profile_url  TEXT PRIMARY KEY,
+    n            INTEGER NOT NULL,
+    at           TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS contact_signals (
+    icp          TEXT NOT NULL,
+    profile_url  TEXT NOT NULL,
+    signals      TEXT NOT NULL,
+    opener       TEXT,
+    quote        TEXT,
+    post_url     TEXT,
+    model        TEXT NOT NULL,
+    at           TEXT NOT NULL,
+    PRIMARY KEY (icp, profile_url)
+  );
   CREATE TABLE IF NOT EXISTS spend (
     at      TEXT NOT NULL,
     icp     TEXT NOT NULL,
@@ -362,4 +432,108 @@ export function saveSignalCheck(
   db.prepare(
     `INSERT OR REPLACE INTO signal_checks (icp, key, signal, confirmed, url, query, at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
   ).run(icp, key, signal, confirmed ? 1 : 0, url, query, new Date().toISOString());
+}
+
+// ---------- contacts ----------
+
+export interface LinkedinCompanyRow {
+  key: string; linkedin_url: string | null; name: string | null; website: string | null;
+  employees: number | null; hq: string | null; matched_by: string | null;
+}
+
+export function linkedinCompaniesFor(db: Db, icp: string): Map<string, LinkedinCompanyRow> {
+  const rows = db.prepare('SELECT key, linkedin_url, name, website, employees, hq, matched_by FROM linkedin_companies WHERE icp = ?').all(icp) as LinkedinCompanyRow[];
+  return new Map(rows.map((r) => [r.key, r]));
+}
+
+export function saveLinkedinCompany(db: Db, icp: string, r: LinkedinCompanyRow): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO linkedin_companies (icp, key, linkedin_url, name, website, employees, hq, matched_by, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(icp, r.key, r.linkedin_url, r.name, r.website, r.employees, r.hq, r.matched_by, new Date().toISOString());
+}
+
+export interface ContactRow {
+  key: string; profile_url: string; name: string; position: string; headline: string | null;
+  location: string | null; emails: string | null; why: string; source: string;
+}
+
+export function saveContact(db: Db, icp: string, c: ContactRow): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO contacts (icp, key, profile_url, name, position, headline, location, emails, why, source, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(icp, c.key, c.profile_url, c.name, c.position, c.headline, c.location, c.emails, c.why, c.source, new Date().toISOString());
+}
+
+export function savePeople(db: Db, icp: string, key: string, people: Array<{ profileUrl: string }>, source: string): void {
+  const tx = db.transaction(() => {
+    for (const p of people) {
+      if (!p.profileUrl) continue;
+      db.prepare('INSERT OR REPLACE INTO people (icp, key, profile_url, person, source, at) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(icp, key, p.profileUrl, JSON.stringify(p), source, new Date().toISOString());
+    }
+  });
+  tx();
+}
+
+export function peopleFor<T>(db: Db, icp: string, key: string): Array<{ person: T; source: string }> {
+  return (db.prepare('SELECT person, source FROM people WHERE icp = ? AND key = ?').all(icp, key) as Array<{ person: string; source: string }>)
+    .map((r) => ({ person: JSON.parse(r.person) as T, source: r.source }));
+}
+
+/** Replaces a company's chosen contacts: picking is re-derived from stored people every run. */
+export function replaceContacts(db: Db, icp: string, key: string, rows: ContactRow[]): void {
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM contacts WHERE icp = ? AND key = ?').run(icp, key);
+    for (const r of rows) saveContact(db, icp, r);
+  });
+  tx();
+}
+
+export function contactsFor(db: Db, icp: string): ContactRow[] {
+  return db.prepare('SELECT key, profile_url, name, position, headline, location, emails, why, source FROM contacts WHERE icp = ?').all(icp) as ContactRow[];
+}
+
+export function peopleSearched(db: Db, icp: string): Set<string> {
+  return new Set((db.prepare('SELECT key FROM people_searched WHERE icp = ?').all(icp) as Array<{ key: string }>).map((r) => r.key));
+}
+
+export function markPeopleSearched(db: Db, icp: string, key: string, found: number): void {
+  db.prepare('INSERT OR REPLACE INTO people_searched (icp, key, found, at) VALUES (?, ?, ?, ?)')
+    .run(icp, key, found, new Date().toISOString());
+}
+
+export function postsFetched(db: Db): Set<string> {
+  return new Set((db.prepare('SELECT profile_url FROM posts_fetched').all() as Array<{ profile_url: string }>).map((r) => r.profile_url));
+}
+
+export function savePosts(db: Db, profileUrl: string, posts: Array<{ postUrl: string; postedAt: string | null; text: string }>): void {
+  const tx = db.transaction(() => {
+    for (const p of posts) {
+      db.prepare('INSERT OR IGNORE INTO person_posts (profile_url, post_url, posted_at, text) VALUES (?, ?, ?, ?)')
+        .run(profileUrl, p.postUrl, p.postedAt, p.text);
+    }
+    db.prepare('INSERT OR REPLACE INTO posts_fetched (profile_url, n, at) VALUES (?, ?, ?)')
+      .run(profileUrl, posts.length, new Date().toISOString());
+  });
+  tx();
+}
+
+export function postsFor(db: Db, profileUrl: string): Array<{ postUrl: string; postedAt: string | null; text: string; profileUrl: string }> {
+  return (db.prepare('SELECT post_url, posted_at, text FROM person_posts WHERE profile_url = ? ORDER BY posted_at DESC').all(profileUrl) as Array<{ post_url: string; posted_at: string | null; text: string }>)
+    .map((r) => ({ profileUrl, postUrl: r.post_url, postedAt: r.posted_at, text: r.text }));
+}
+
+export interface ContactSignalRow { profile_url: string; signals: string; opener: string | null; quote: string | null; post_url: string | null }
+
+export function contactSignalsFor(db: Db, icp: string): Map<string, ContactSignalRow> {
+  const rows = db.prepare('SELECT profile_url, signals, opener, quote, post_url FROM contact_signals WHERE icp = ?').all(icp) as ContactSignalRow[];
+  return new Map(rows.map((r) => [r.profile_url, r]));
+}
+
+export function saveContactSignals(db: Db, icp: string, r: ContactSignalRow, model: string): void {
+  db.prepare(
+    `INSERT OR REPLACE INTO contact_signals (icp, profile_url, signals, opener, quote, post_url, model, at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(icp, r.profile_url, r.signals, r.opener, r.quote, r.post_url, model, new Date().toISOString());
 }

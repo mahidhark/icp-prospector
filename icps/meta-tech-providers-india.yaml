@@ -20,6 +20,14 @@ buyerTitles:
   - Head of Product
   - Head of Partnerships
 
+# Topics tagged in each contact's recent LinkedIn posts (npm run contacts).
+personSignals:
+  - { id: ai-agents, description: "talks about AI agents, LLMs or agentic tools" }
+  - { id: automation, description: "workflows, no-code tools (n8n, Make, Zapier) or integrations" }
+  - { id: whatsapp, description: "WhatsApp, Meta or business messaging" }
+  - { id: growth-hiring, description: "fundraising, growth, hiring or launches" }
+  - { id: churn-retention, description: "customer churn, retention or engagement" }
+
 # How qualified companies are grouped. `weight` is added to the prospect score,
 # so it encodes which segment to call first.
 segments:
