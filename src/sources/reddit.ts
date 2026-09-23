@@ -52,9 +52,12 @@ export function planRedditRuns(cfg: RedditSource): RedditRun[] {
       includeNSFW: false,
       skipUserPosts: true,
       skipCommunity: true,
-      // Comments under a matching post are where the complaints are; keep some.
-      skipComments: false,
-      maxComments: 10,
+      skipComments: !cfg.includeComments,
+      // Measured 2026-09-23: this actor stops the WHOLE run at `maxComments`
+      // items (log: LIMIT_REACHED), not per post as documented. maxComments 10
+      // gave 10 items against maxItems 60; 3 gave 3; 60 gave 60. So it is set
+      // to the run cap, and `maxItems` alone would not be enough.
+      maxComments: cfg.maxItemsPerRun,
       maxItems: cfg.maxItemsPerRun,
       maxPostCount: cfg.maxItemsPerRun,
       proxy: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'] },

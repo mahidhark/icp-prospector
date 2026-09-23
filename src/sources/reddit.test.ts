@@ -34,3 +34,11 @@ test('community falls back to communityName without the r/ prefix', () => {
   const c = normaliseRedditItem({ id: 't1_b', dataType: 'comment', url: 'u', body: 'hi', communityName: 'r/SaaS' }, null);
   assert.equal(c?.community, 'SaaS');
 });
+
+test('posts only by default, and maxComments tracks the run cap', () => {
+  const [run] = planRedditRuns(cfg);
+  assert.equal(run!.input.skipComments, true);
+  assert.equal(run!.input.maxComments, 50);
+  const [withComments] = planRedditRuns({ ...cfg, includeComments: true });
+  assert.equal(withComments!.input.skipComments, false);
+});

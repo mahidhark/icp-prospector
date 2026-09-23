@@ -22,3 +22,14 @@ test('negative or non-numeric budgets are refused', () => {
   assert.equal(parseBudgetFlag([], 5), 5);
   assert.equal(parseBudgetFlag(['--budget', '2.5'], 5), 2.5);
 });
+
+test('reservations hold the worst case until settled to the actual cost', () => {
+  const b = new Budget(1);
+  const s1 = b.reserve(0.6);
+  assert.ok(s1);
+  assert.equal(b.reserve(0.6), null, 'two runs in flight cannot jointly cross the cap');
+  s1!(0.1);
+  assert.ok(Math.abs(b.spentUsd - 0.1) < 1e-9);
+  assert.ok(b.reserve(0.6));
+  assert.throws(() => s1!(0.1), /already settled/);
+});

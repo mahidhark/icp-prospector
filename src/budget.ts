@@ -30,6 +30,22 @@ export class Budget {
   record(usd: number): void {
     this.spent += usd;
   }
+
+  /**
+   * Holds a call's worst case while it runs, so calls in flight together cannot
+   * jointly cross the cap. Returns a settle function that swaps the hold for
+   * what the call actually cost.
+   */
+  reserve(worstCaseUsd: number): ((actualUsd: number) => void) | null {
+    if (!this.allows(worstCaseUsd)) return null;
+    this.spent += worstCaseUsd;
+    let settled = false;
+    return (actualUsd: number) => {
+      if (settled) throw new Error('reservation already settled');
+      settled = true;
+      this.spent += actualUsd - worstCaseUsd;
+    };
+  }
 }
 
 /** `--budget 5` → 5. Missing means the caller's default; anything else unparseable is an error. */

@@ -17,6 +17,13 @@ export const RedditSourceSchema = z.strictObject({
   searches: z.array(z.string().min(2)).min(1),
   time: z.enum(['all', 'hour', 'day', 'week', 'month', 'year']).default('year'),
   maxItemsPerRun: z.number().int().min(1).max(1000).default(50),
+  /**
+   * Off by default. With comments on, the item cap fills with a few threads'
+   * replies instead of many posts: measured 3 posts + 57 comments vs 60 posts.
+   */
+  includeComments: z.boolean().default(false),
+  /** Runs in flight at once. Each Reddit run takes ~8 minutes. */
+  concurrency: z.number().int().min(1).max(8).default(3),
 });
 
 export const IcpSchema = z.strictObject({
